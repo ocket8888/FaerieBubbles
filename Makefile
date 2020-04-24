@@ -10,8 +10,6 @@ OUTFILES := $(patsubst %.ts,%.js,$(SOURCE))
 .PHONY: all clean
 
 all: $(OUTFILES)
-	# Don't ask me why this is necessary
-# 	$(foreach o,$(OUTFILES),$(shell sed -ri 's/from "\.\/(.+)";/from "\.\/\1\.js";/g' $(o)))
 
 clean:
 	$(RM) $(OUTFILES)
