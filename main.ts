@@ -1,4 +1,4 @@
-import { FaerieBubbles } from "./faerie.bubbles";
+import { FaerieBubbles } from "./faerie.bubbles.js";
 
 function init(): void {
 	let fb: FaerieBubbles;

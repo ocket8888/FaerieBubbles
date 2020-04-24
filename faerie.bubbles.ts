@@ -1,4 +1,4 @@
-import { shaderProgram } from "./shaders";
+import { shaderProgram } from "./shaders.js";
 
 type Context = WebGLRenderingContext | WebGL2RenderingContext;
 
