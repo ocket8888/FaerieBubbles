@@ -1,0 +1,20 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+			"file_exclude_patterns": ["*.sublime-*", "*.js"]
+		}
+	],
+	"build_systems": [
+		{
+			"name": "Build",
+			"cmd": ["make"],
+			"file_regex": "(.+)\\((\\d+),(\\d+\\)): error \\w+: (.+)"
+		},
+		{
+			"name": "Clean",
+			"cmd": ["make", "clean"]
+		}
+	]
+}
