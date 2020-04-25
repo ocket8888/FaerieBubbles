@@ -9,5 +9,6 @@ function init(): void {
 		return;
 	}
 	console.log("Faerie Bubbles loaded:", fb);
+	fb.start();
 }
 window.addEventListener("load", init);
