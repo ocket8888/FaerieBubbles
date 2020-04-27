@@ -21,6 +21,17 @@ export class FaerieBubbles {
 
 	private currentAngle = 0;
 
+	private vertexArray = new Float32Array([
+		-0.5, 0.5, 0.5, 0.5, 0.5, -0.5,
+		-0.5, 0.5, 0.5, -0.5, -0.5, -0.5
+	]);
+
+	private shaderProgram: WebGLProgram;
+	private previousTime = 0;
+
+	private leftPressed = false;
+	private rightPressed = false;
+
 	public static defaultOptions: ContextOptions = {
 		alpha: false,
 		antialias: true,
@@ -32,6 +43,9 @@ export class FaerieBubbles {
 		preserveDrawingBuffer: false,
 		stencil: true
 	};
+
+	private static maxAngle = 3 * Math.PI / 8;
+	private static minAngle = -3 * Math.PI / 8;
 
 	constructor(canvas: HTMLCanvasElement, contextAttributes?: ContextOptions) {
 		const opts = FaerieBubbles.mergeOptions(contextAttributes);
@@ -52,6 +66,11 @@ export class FaerieBubbles {
 			throw new Error("Failed to create vertexBuffer");
 		}
 		this.vertexBuffer = buffer;
+		this.shaderProgram = shaderProgram(this.context);
+	}
+
+	private get aspectRatio(): number {
+		return this.canvas.width / this.canvas.height;
 	}
 
 	private static mergeOptions(opts?: ContextOptions): ContextOptions {
@@ -63,29 +82,77 @@ export class FaerieBubbles {
 	}
 
 	public start(): void {
+		this.context.useProgram(this.shaderProgram);
+		this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertexBuffer);
+		this.context.bufferData(this.context.ARRAY_BUFFER, this.vertexArray, this.context.STATIC_DRAW);
+
+		window.addEventListener("keydown", (event: KeyboardEvent) => {
+			switch (event.key) {
+				case "ArrowLeft":
+					this.leftPressed = true;
+					break;
+				case "ArrowRight":
+					this.rightPressed = true;
+					break;
+			}
+		});
+
+		window.addEventListener("keyup", (event: KeyboardEvent) => {
+			switch (event.key) {
+				case "ArrowLeft":
+					this.leftPressed = false;
+					break;
+
+				case "ArrowRight":
+					this.rightPressed = false;
+					break;
+			}
+		});
+
+		window.requestAnimationFrame((currentTime) => {this.animate(currentTime)});
+	}
+
+	private animate(time: number): void {
+		const deltaT = time - this.previousTime;
+		let deltaAngle = 0;
+		if (this.leftPressed && !this.rightPressed) {
+			deltaAngle = -Math.PI * deltaT / 2000; // (Pi/2)(deltaT in ms / 1000)
+		} else if (this.rightPressed && !this.leftPressed) {
+			deltaAngle = Math.PI * deltaT / 2000;
+		}
+
+		this.currentAngle += deltaAngle;
+
+		if (this.currentAngle > FaerieBubbles.maxAngle) {
+			this.currentAngle = FaerieBubbles.maxAngle;
+		} else if (this.currentAngle < FaerieBubbles.minAngle) {
+			this.currentAngle = FaerieBubbles.minAngle;
+		}
+
+		this.previousTime = time;
+
 		this.context.viewport(0, 0, this.canvas.width, this.canvas.height);
 		this.context.clearColor(0.8, 0.9, 1.0, 1.0);
 		this.context.clear(this.context.COLOR_BUFFER_BIT);
 
+		this.context.useProgram(this.shaderProgram);
+
 		const currentRotation = [Math.sin(this.currentAngle), Math.cos(this.currentAngle)];
+		const uScalingFactor = this.context.getUniformLocation(this.shaderProgram, "uScalingFactor");
+		const uGlobalColor = this.context.getUniformLocation(this.shaderProgram, "uGlobalColor");
+		const uRotationVector= this.context.getUniformLocation(this.shaderProgram, "uRotationVector");
 
-		const program = shaderProgram(this.context);
-		this.context.useProgram(program);
-
-		const uScalingFactor = this.context.getUniformLocation(program, "uScalingFactor");
-		const uGlobalColor = this.context.getUniformLocation(program, "uGlobalColor");
-		const uRotationFactor = this.context.getUniformLocation(program, "uRotationFactor");
-
-		this.context.uniform2fv(uScalingFactor, [1.0, 1.0]);
-		this.context.uniform2fv(uRotationFactor, currentRotation);
+		this.context.uniform2fv(uScalingFactor, [0.5, 0.5 * this.aspectRatio]);
+		this.context.uniform2fv(uRotationVector, currentRotation);
 		this.context.uniform4fv(uGlobalColor, [0.1, 0.7, 0.2, 1.0]);
 
 		this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertexBuffer);
-		// this.context.bufferData(this.vertexBuffer)
 
-		const aVertexPosition = this.context.getAttribLocation(program, "aVertexPosition");
+		const aVertexPosition = this.context.getAttribLocation(this.shaderProgram, "aVertexPosition");
 		this.context.enableVertexAttribArray(aVertexPosition);
 		this.context.vertexAttribPointer(aVertexPosition, 2, this.context.FLOAT, false, 0, 0);
 		this.context.drawArrays(this.context.TRIANGLES, 0, 6);
+
+		window.requestAnimationFrame((time) => {this.animate(time)});
 	}
 }
