@@ -47,6 +47,8 @@ export class FaerieBubbles {
 	private static maxAngle = 3 * Math.PI / 8;
 	private static minAngle = -3 * Math.PI / 8;
 
+	private loaded = false;
+
 	constructor(canvas: HTMLCanvasElement, contextAttributes?: ContextOptions) {
 		const opts = FaerieBubbles.mergeOptions(contextAttributes);
 
@@ -81,12 +83,22 @@ export class FaerieBubbles {
 		return Object.assign(ret, opts);
 	}
 
+	public load(): void {
+		this.loaded = true;
+		this.loadTexture("/faerie.bubbles.png");
+	}
+
 	public start(): void {
+		if (!this.loaded) {
+			this.load();
+		}
 		this.context.useProgram(this.shaderProgram);
 		this.context.bindBuffer(this.context.ARRAY_BUFFER, this.vertexBuffer);
 		this.context.bufferData(this.context.ARRAY_BUFFER, this.vertexArray, this.context.STATIC_DRAW);
 
-		window.addEventListener("keydown", (event: KeyboardEvent) => {
+		this.canvas.addEventListener("keydown", (event: KeyboardEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
 			switch (event.key) {
 				case "ArrowLeft":
 					this.leftPressed = true;
@@ -97,7 +109,9 @@ export class FaerieBubbles {
 			}
 		});
 
-		window.addEventListener("keyup", (event: KeyboardEvent) => {
+		this.canvas.addEventListener("keyup", (event: KeyboardEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
 			switch (event.key) {
 				case "ArrowLeft":
 					this.leftPressed = false;
@@ -154,5 +168,50 @@ export class FaerieBubbles {
 		this.context.drawArrays(this.context.TRIANGLES, 0, 6);
 
 		window.requestAnimationFrame((time) => {this.animate(time)});
+	}
+
+	private loadTexture(url: string): WebGLTexture {
+		const texture = this.context.createTexture();
+		if (!texture) {
+			throw new Error(`Failed to initialize texture for '${url}'`);
+		}
+		this.context.bindTexture(this.context.TEXTURE_2D, texture);
+
+		const level = 0;
+		const internalFormat = this.context.RGBA;
+		const width = 1;
+		const height = 1;
+		const border = 0;
+		const srcFormat = this.context.RGBA;
+		const srcType = this.context.UNSIGNED_BYTE;
+		const pixel = new Uint8Array([0, 0, 255, 255]);
+
+		this.context.texImage2D(
+			this.context.TEXTURE_2D,
+			level,
+			internalFormat,
+			width,
+			height,
+			border,
+			srcFormat,
+			srcType,
+			pixel
+		);
+
+		const img = new Image();
+		img.addEventListener("load", () => {
+			this.context.bindTexture(this.context.TEXTURE_2D, texture);
+			this.context.texImage2D(this.context.TEXTURE_2D, level, internalFormat, srcFormat, srcType, img);
+
+			if ((img.width & (img.width - 1)) === 0 && (img.height & (img.height - 1)) === 0) {
+				this.context.generateMipmap(this.context.TEXTURE_2D);
+			} else {
+				this.context.texParameteri(this.context.TEXTURE_2D, this.context.TEXTURE_WRAP_S, this.context.CLAMP_TO_EDGE);
+				this.context.texParameteri(this.context.TEXTURE_2D, this.context.TEXTURE_WRAP_T, this.context.CLAMP_TO_EDGE);
+				this.context.texParameteri(this.context.TEXTURE_2D, this.context.TEXTURE_MIN_FILTER, this.context.LINEAR);
+			}
+		});
+		img.src = url;
+		return texture;
 	}
 }
